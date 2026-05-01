@@ -19,9 +19,14 @@ const PORT = process.env.PORT || 3001;
 
 // Security
 app.use(helmet());
+const cors = require("cors");
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  credentials: true,
+  origin: [
+    "http://localhost:5173",   // local frontend
+    process.env.FRONTEND_URL   // deployed frontend
+  ],
+  credentials: true
 }));
 
 // Rate limiting
