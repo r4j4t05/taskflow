@@ -16,11 +16,28 @@ const dashboardRoutes = require('./routes/dashboard');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const isProduction = process.env.NODE_ENV === 'production';
+
+const allowedOrigins = new Set([
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  ...(process.env.FRONTEND_URL || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean),
+]);
 
 // Security
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin) || !isProduction) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Not allowed by CORS'));
+  },
 }));
 
 // Rate limiting
@@ -57,8 +74,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+if (process.env.SEED_DEMO_DATA === 'true') {
+  const seed = require('./db/seed');
+  seed().catch(err => console.error('Demo seed failed:', err));
+}
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 TaskFlow API running on port ${PORT}`);
+  console.log(`TaskFlow API running on port ${PORT}`);
 });
 
 module.exports = app;

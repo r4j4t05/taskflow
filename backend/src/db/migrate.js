@@ -1,8 +1,9 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const { getDatabasePath } = require('./path');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../data/taskflow.db');
+const DB_PATH = getDatabasePath();
 
 // Ensure data directory exists
 const dataDir = path.dirname(DB_PATH);
@@ -86,7 +87,7 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
   `);
 
-  console.log('✅ Database migrated successfully');
+  console.log('Database migrated successfully');
 }
 
 migrate();

@@ -141,14 +141,15 @@ git push -u origin main
 2. Select your repo → **Set Root Directory to `backend`**
 3. Add environment variables:
    ```
-   PORT=3001
    JWT_SECRET=your-random-32-char-secret-here
-   DB_PATH=./data/taskflow.db
+   DB_PATH=/app/data/taskflow.db
    NODE_ENV=production
    FRONTEND_URL=https://your-frontend.railway.app
+   SEED_DEMO_DATA=true
    ```
-4. Railway auto-detects Node.js and runs `npm start`
-5. Copy the generated URL (e.g., `https://taskflow-backend.railway.app`)
+4. Add a Railway Volume mounted at `/app/data` so SQLite persists across redeploys
+5. Railway uses `backend/railway.json` to run `npm ci --omit=dev` and `npm start`
+6. Copy the generated URL (e.g., `https://taskflow-backend.railway.app`)
 
 ### Step 3: Deploy Frontend
 
@@ -158,12 +159,21 @@ git push -u origin main
    ```
    VITE_API_URL=https://taskflow-backend.railway.app/api
    ```
-4. Build command: `npm install && npm run build`
-5. Start command: `npx serve dist -p $PORT`
+4. Railway uses `frontend/railway.json` to run `npm ci && npm run build`
+5. Start command is already configured as `npm run start -- --port $PORT`
 
 ### Step 4: Test
 
-Visit your frontend Railway URL. Create an admin account and start managing projects!
+Update backend `FRONTEND_URL` with the deployed frontend URL, redeploy the backend once, then visit your frontend Railway URL.
+
+Demo credentials are available when `SEED_DEMO_DATA=true`:
+
+```
+admin@taskflow.com / admin123
+member@taskflow.com / member123
+```
+
+For a concise checklist, see [`RAILWAY_DEPLOYMENT.md`](./RAILWAY_DEPLOYMENT.md).
 
 ---
 

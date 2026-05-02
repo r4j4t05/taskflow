@@ -5,19 +5,19 @@ const bcrypt = require('bcryptjs');
 const db = require('./index');
 
 async function seed() {
-  console.log('🌱 Seeding demo data...');
+  console.log('Seeding demo data...');
 
   // Create users
   const adminHash = await bcrypt.hash('admin123', 12);
   const memberHash = await bcrypt.hash('member123', 12);
 
-  const admin = db.prepare(`INSERT OR IGNORE INTO users (name, email, password_hash, role, avatar_initials) VALUES (?, ?, ?, ?, ?)`)
+  db.prepare(`INSERT OR IGNORE INTO users (name, email, password_hash, role, avatar_initials) VALUES (?, ?, ?, ?, ?)`)
     .run('Alex Admin', 'admin@taskflow.com', adminHash, 'admin', 'AA');
 
-  const member1 = db.prepare(`INSERT OR IGNORE INTO users (name, email, password_hash, role, avatar_initials) VALUES (?, ?, ?, ?, ?)`)
+  db.prepare(`INSERT OR IGNORE INTO users (name, email, password_hash, role, avatar_initials) VALUES (?, ?, ?, ?, ?)`)
     .run('Sam Member', 'member@taskflow.com', memberHash, 'member', 'SM');
 
-  const member2 = db.prepare(`INSERT OR IGNORE INTO users (name, email, password_hash, role, avatar_initials) VALUES (?, ?, ?, ?, ?)`)
+  db.prepare(`INSERT OR IGNORE INTO users (name, email, password_hash, role, avatar_initials) VALUES (?, ?, ?, ?, ?)`)
     .run('Jordan Dev', 'jordan@taskflow.com', memberHash, 'member', 'JD');
 
   const adminId = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@taskflow.com').id;
@@ -25,11 +25,16 @@ async function seed() {
   const member2Id = db.prepare('SELECT id FROM users WHERE email = ?').get('jordan@taskflow.com').id;
 
   // Create projects
-  const proj1 = db.prepare(`INSERT OR IGNORE INTO projects (name, description, status, owner_id) VALUES (?, ?, ?, ?)`)
-    .run('Website Redesign', 'Redesign the company website with modern UI/UX principles', 'active', adminId);
+  const existingProject = db.prepare('SELECT id FROM projects WHERE name = ?');
+  const insertProject = db.prepare('INSERT INTO projects (name, description, status, owner_id) VALUES (?, ?, ?, ?)');
 
-  const proj2 = db.prepare(`INSERT OR IGNORE INTO projects (name, description, status, owner_id) VALUES (?, ?, ?, ?)`)
-    .run('Mobile App MVP', 'Build the v1 mobile application for iOS and Android', 'active', memberId);
+  if (!existingProject.get('Website Redesign')) {
+    insertProject.run('Website Redesign', 'Redesign the company website with modern UI/UX principles', 'active', adminId);
+  }
+
+  if (!existingProject.get('Mobile App MVP')) {
+    insertProject.run('Mobile App MVP', 'Build the v1 mobile application for iOS and Android', 'active', memberId);
+  }
 
   const proj1Id = db.prepare('SELECT id FROM projects WHERE name = ?').get('Website Redesign').id;
   const proj2Id = db.prepare('SELECT id FROM projects WHERE name = ?').get('Mobile App MVP').id;
@@ -61,13 +66,22 @@ async function seed() {
     { title: 'App Store submission', description: 'Prepare screenshots, description, and submit to App Store', status: 'todo', priority: 'urgent', project_id: proj2Id, assignee_id: adminId, creator_id: memberId, due_date: fmt(yesterday) },
   ];
 
-  const insertTask = db.prepare('INSERT OR IGNORE INTO tasks (title, description, status, priority, project_id, assignee_id, creator_id, due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-  tasks.forEach(t => insertTask.run(t.title, t.description, t.status, t.priority, t.project_id, t.assignee_id, t.creator_id, t.due_date));
+  const existingTask = db.prepare('SELECT id FROM tasks WHERE project_id = ? AND title = ?');
+  const insertTask = db.prepare('INSERT INTO tasks (title, description, status, priority, project_id, assignee_id, creator_id, due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+  tasks.forEach(t => {
+    if (!existingTask.get(t.project_id, t.title)) {
+      insertTask.run(t.title, t.description, t.status, t.priority, t.project_id, t.assignee_id, t.creator_id, t.due_date);
+    }
+  });
 
-  console.log('✅ Seed complete!');
+  console.log('Seed complete!');
   console.log('   admin@taskflow.com / admin123');
   console.log('   member@taskflow.com / member123');
   console.log('   jordan@taskflow.com / member123');
 }
 
-seed().catch(console.error);
+if (require.main === module) {
+  seed().catch(console.error);
+}
+
+module.exports = seed;

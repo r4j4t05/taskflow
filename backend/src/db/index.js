@@ -1,8 +1,9 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const { getDatabasePath } = require('./path');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../data/taskflow.db');
+const DB_PATH = getDatabasePath();
 
 const dataDir = path.dirname(DB_PATH);
 if (!fs.existsSync(dataDir)) {
