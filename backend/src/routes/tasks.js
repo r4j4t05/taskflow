@@ -1,5 +1,5 @@
 const express = require('express');
-const { body, query, validationResult } = require('express-validator');
+const { body, validationResult } = require('express-validator');
 const db = require('../db');
 const { authenticate, requireProjectAccess } = require('../middleware/auth');
 
@@ -35,7 +35,7 @@ router.post('/', authenticate, requireProjectAccess, [
   body('description').optional().trim().isLength({ max: 2000 }),
   body('status').optional().isIn(['todo', 'in_progress', 'review', 'done']),
   body('priority').optional().isIn(['low', 'medium', 'high', 'urgent']),
-  body('assignee_id').optional({ nullable: true }).isInt(),
+  body('assignee_id').optional({ nullable: true }).isInt().toInt(),
   body('due_date').optional({ nullable: true }).isDate(),
 ], (req, res) => {
   const errors = validationResult(req);
@@ -43,10 +43,9 @@ router.post('/', authenticate, requireProjectAccess, [
 
   const { title, description = '', status = 'todo', priority = 'medium', assignee_id = null, due_date = null } = req.body;
 
-  // Validate assignee is project member
   if (assignee_id) {
     const isMember = db.prepare('SELECT id FROM project_members WHERE project_id = ? AND user_id = ?').get(req.params.projectId, assignee_id);
-    if (!isMember && req.user.role !== 'admin') {
+    if (!isMember) {
       return res.status(400).json({ error: 'Assignee must be a project member' });
     }
   }
@@ -89,8 +88,8 @@ router.put('/:taskId', authenticate, requireProjectAccess, [
   body('description').optional().trim().isLength({ max: 2000 }),
   body('status').optional().isIn(['todo', 'in_progress', 'review', 'done']),
   body('priority').optional().isIn(['low', 'medium', 'high', 'urgent']),
-  body('assignee_id').optional({ nullable: true }),
-  body('due_date').optional({ nullable: true }),
+  body('assignee_id').optional({ nullable: true }).isInt().toInt(),
+  body('due_date').optional({ nullable: true }).isDate(),
 ], (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -98,14 +97,23 @@ router.put('/:taskId', authenticate, requireProjectAccess, [
   const task = db.prepare('SELECT * FROM tasks WHERE id = ? AND project_id = ?').get(req.params.taskId, req.params.projectId);
   if (!task) return res.status(404).json({ error: 'Task not found' });
 
-  // Members can only update tasks they created or are assigned to
   if (req.user.role !== 'admin' && req.projectRole !== 'admin') {
-    const isOwner = task.creator_id === req.user.id || task.assignee_id === req.user.id;
-    // Allow status update by assignee, but only admin/creator can change other fields
+    const isCreator = task.creator_id === req.user.id;
+    const isAssignee = task.assignee_id === req.user.id;
     const sensitiveFields = ['title', 'description', 'priority', 'assignee_id', 'due_date'];
     const changingSensitive = sensitiveFields.some(f => req.body[f] !== undefined);
-    if (!isOwner && changingSensitive) {
+    if (!isCreator && !isAssignee) {
       return res.status(403).json({ error: 'You can only edit your own tasks' });
+    }
+    if (!isCreator && changingSensitive) {
+      return res.status(403).json({ error: 'Assignees can only update task status' });
+    }
+  }
+
+  if (req.body.assignee_id) {
+    const isMember = db.prepare('SELECT id FROM project_members WHERE project_id = ? AND user_id = ?').get(req.params.projectId, req.body.assignee_id);
+    if (!isMember) {
+      return res.status(400).json({ error: 'Assignee must be a project member' });
     }
   }
 
@@ -151,6 +159,9 @@ router.post('/:taskId/comments', authenticate, requireProjectAccess, [
 ], (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+  const task = db.prepare('SELECT id FROM tasks WHERE id = ? AND project_id = ?').get(req.params.taskId, req.params.projectId);
+  if (!task) return res.status(404).json({ error: 'Task not found' });
 
   const result = db.prepare(
     'INSERT INTO task_comments (task_id, user_id, content) VALUES (?, ?, ?)'

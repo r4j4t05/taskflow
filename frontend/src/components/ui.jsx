@@ -1,6 +1,7 @@
 export function Avatar({ name, initials, size = 'md' }) {
   const colors = ['bg-blue-100 text-blue-700', 'bg-purple-100 text-purple-700', 'bg-green-100 text-green-700', 'bg-orange-100 text-orange-700', 'bg-pink-100 text-pink-700'];
-  const color = colors[(name || '').charCodeAt(0) % colors.length];
+  const charCode = (name || '?').charCodeAt(0);
+  const color = colors[charCode % colors.length];
   const sizes = { sm: 'w-7 h-7 text-xs', md: 'w-9 h-9 text-sm', lg: 'w-12 h-12 text-base' };
   return (
     <div className={`${sizes[size]} ${color} rounded-full flex items-center justify-center font-semibold flex-shrink-0`}>
@@ -13,6 +14,7 @@ export function Badge({ status, type = 'status' }) {
   const labels = {
     todo: 'To Do', in_progress: 'In Progress', review: 'Review', done: 'Done',
     low: 'Low', medium: 'Medium', high: 'High', urgent: 'Urgent',
+    active: 'Active', completed: 'Completed', archived: 'Archived',
   };
   return <span className={`badge-${status}`}>{labels[status] || status}</span>;
 }

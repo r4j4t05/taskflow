@@ -77,9 +77,9 @@ router.get('/', authenticate, (req, res) => {
   if (isAdmin) {
     projectSummary = db.prepare(`
       SELECT p.id, p.name, p.status,
-        COUNT(t.id) as total_tasks,
-        SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) as done_tasks,
-        COUNT(pm.user_id) as member_count
+        COUNT(DISTINCT t.id) as total_tasks,
+        COUNT(DISTINCT CASE WHEN t.status = 'done' THEN t.id END) as done_tasks,
+        COUNT(DISTINCT pm.user_id) as member_count
       FROM projects p
       LEFT JOIN tasks t ON t.project_id = p.id
       LEFT JOIN project_members pm ON pm.project_id = p.id
